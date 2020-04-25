@@ -6,19 +6,25 @@ from lib.init_logging import init_logging
 init_logging('debug')
 logger = logging.getLogger(__name__)
 
+CREATURE_SPRITES = {
+    'blob': 'sprites/blob.yaml'
+}
 
-class Player:
-    def __init__(self):
+
+class Creature:
+    def __init__(self, type):
         self.x = 0
         self.y = 0
         self.color = 0
 
+        self.type = type
+
         self.direction = 'right'
         self.state = 'idle'
-        
+
         self.is_visible = True
 
-        self.sprite = Sprite('sprites/player.yaml')
+        self.sprite = Sprite(CREATURE_SPRITES[type])
 
     def tick_sprite_state(self, dt):
         """
@@ -27,7 +33,8 @@ class Player:
         :param dt: 
         :return: 
         """
-        self.sprite.tick(dt, self.state, self.direction)
+        if self.is_visible:
+            self.sprite.tick(dt, self.state, self.direction)
 
     def update(self, update_data):
         """
@@ -36,7 +43,9 @@ class Player:
         :param update_data: 
         :return: 
         """
+        logger.info(update_data)
         self.x, self.y = update_data['coords']
         self.color = update_data['color']
+        self.is_visible = update_data['is_visible']
 
         # todo: direction, state

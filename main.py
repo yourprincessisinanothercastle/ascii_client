@@ -8,6 +8,7 @@ from time import sleep
 import aiohttp
 import click
 
+from lib.creatures.creature import Creature
 from lib.creatures.player import Player
 from lib.init_logging import init_logging
 from asciimatics.event import KeyboardEvent
@@ -87,7 +88,9 @@ class SendQueue:
 send_queue = SendQueue()
 current_room = Room()
 player = Player()
+
 other_players = {}
+creatures = {}
 
 
 class Client:
@@ -136,6 +139,14 @@ class Client:
                                 other_players[uid] = Player()
                             other_players[uid].update(player_data)
 
+                    creatures_data = packet['data'].get('creatures', False)
+                    if creatures_data:
+                        for uid, creature_data in creatures_data.items():
+                            creature = creatures.get(uid, False)
+                            if not creature:
+                                creatures[uid] = Creature(creature_data['type'])
+                            creatures[uid].update(creature_data)
+
                 elif packet['type'] == 'update':
                     map = packet['data'].get('map', False)
                     if map:
@@ -152,11 +163,23 @@ class Client:
                                 other_players[uid] = Player()
                             other_players[uid].update(player_data)
 
-                elif packet['type'] == 'remove_player':
+                    creatures_data = packet['data'].get('creatures', False)
+                    if creatures_data:
+                        for uid, creature_data in creatures_data.items():
+                            creature = creatures.get(uid, False)
+                            if not creature:
+                                creatures[uid] = Creature(creature_data['type'])
+                            creatures[uid].update(creature_data)
+
+                elif packet['type'] == 'remove_players':
                     uids = packet['data']
                     for uid in uids:
                         logger.info('player %s left' % uid)
                         del other_players[uid]
+                elif packet['type'] == 'remove_creatures':
+                    uids = packet['data']
+                    for uid in uids:
+                        del creatures[uid]
                 else:
                     logger.debug("Got undefined message %s" % msg.data)
 
@@ -183,13 +206,20 @@ class ScreenManager:
                     self.screen_print_with_player_offset(char, x, y, colour=color)
 
     def draw_player(self, player: Player):
-        sprite = player.sprite.get_cells()
+        self.draw_creature(player)
+
+        pass
+
+    def draw_creature(self, creature: Creature):
+        sprite = creature.sprite.get_cells()
+        color = creature.color
+        if not creature.is_visible:
+            color = 10
         for row_idx, row in enumerate(sprite):
             for col_idx, char in enumerate(row):
                 if char:
-                    self.screen_print_with_player_offset(char, player.x + col_idx, player.y + row_idx, colour=player.color)
-
-        pass
+                    self.screen_print_with_player_offset(char, creature.x + col_idx, creature.y + row_idx,
+                                                         colour=color)
 
     def handle_input(self):
         event = self.screen.get_event()
@@ -212,6 +242,9 @@ class ScreenManager:
         player.tick_sprite_state(dt)
         for uid, other_player in other_players.items():
             other_player.tick_sprite_state(dt)
+        for uid, creature in creatures.items():
+
+            creature.tick_sprite_state(dt)
 
     async def run(self):
         FPS = 1 / 20
@@ -244,6 +277,9 @@ class ScreenManager:
                 self.draw_player(player)
                 for uid, other_player in other_players.items():
                     self.draw_player(other_player)
+
+                for uid, creature in creatures.items():
+                    self.draw_creature(creature)
 
                 '''
                 for creature in self.player.room.creatures:

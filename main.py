@@ -36,10 +36,12 @@ class Player:
         self.char = '@'
         self.x = 0
         self.y = 0
+        self.color = 0
 
     def update(self, update_data):
         logger.info(update_data)
         self.x, self.y = update_data['coords']
+        self.color = update_data['color']
 
 
 class Tile:
@@ -96,60 +98,76 @@ class Client:
     def __init__(self):
         self.session = aiohttp.ClientSession()
         self.package_queue = asyncio.Queue()
+        self.ws = None
 
-    async def run(self, url):
-        async with self.session.ws_connect(url) as ws:
-            async for msg in ws:
-                # await ws.send_str('tick!')
-                
-                if msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
-                    pass
-                if msg.type == aiohttp.WSMsgType.text:
-                    logger.debug('got msg: %s' % msg.data)
-                    packet = json.loads(msg.data)
-                    if packet['type'] == 'init':
-                        logger.debug("Got init package")
-                        logger.debug(json.dumps(packet, indent=2))
+    async def init(self, url):
+        self.ws = await self.session.ws_connect(url)
+        asyncio.ensure_future(self.send_loop())
+        asyncio.ensure_future(self.receive_loop())
 
-                        current_room.update_room(packet['data']['map'])
+    async def send_loop(self):
+        while True:
+            actions = await send_queue.get_all_actions()
+            if actions:
+                logger.info(actions)
+                logger.info('sending actions: %s' % actions)
+                await self.ws.send_str(json.dumps({'type': 'actions', 'data': actions}))
+            await asyncio.sleep(1/20)
 
-                        player.update(packet['data']['self'])
+    async def receive_loop(self):
+        async for msg in self.ws:
+            # await ws.send_str('tick!')
 
-                        other_players_data = packet['data'].get('players', False)
-                        if other_players_data:
-                            for uid, player_data in other_players_data.items():
-                                other_player = other_players.get(uid, False)
-                                if not other_player:
-                                    other_players[uid] = Player()
-                                other_players[uid].update(player_data)
+            if msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
+                logger.warning('error message: %s' % msg.data)
+                pass
 
-                    elif packet['type'] == 'update':
-                        map = packet['data'].get('map', False)
-                        if map:
-                            current_room.update_room(map)
-                        player_data = packet['data'].get('self', False)
-                        if player_data:
-                            player.update(player_data)
+            elif msg.type == aiohttp.WSMsgType.text:
+                #logger.debug('got msg: %s' % msg.data)
+                packet = json.loads(msg.data)
+                if packet['type'] == 'init':
+                    logger.debug("Got init package")
 
-                        other_players_data = packet['data'].get('players', False)
-                        if other_players_data:
-                            for uid, player_data in other_players_data.items():
-                                other_player = other_players.get(uid, False)
-                                if not other_player:
-                                    other_players[uid] = Player()
-                                other_players[uid].update(player_data)
-                    else:
-                        logger.debug("Got undefined message %s" % msg.data)
+                    current_room.update_room(packet['data']['map'])
 
-                    # await ws.send_str("Pressed key code: {}".format(msg.data))
+                    player.update(packet['data']['self'])
+
+                    other_players_data = packet['data'].get('players', False)
+                    if other_players_data:
+                        for uid, player_data in other_players_data.items():
+                            other_player = other_players.get(uid, False)
+                            if not other_player:
+                                other_players[uid] = Player()
+                            other_players[uid].update(player_data)
+
+                elif packet['type'] == 'update':
+                    map = packet['data'].get('map', False)
+                    if map:
+                        current_room.update_room(map)
+                    player_data = packet['data'].get('self', False)
+                    if player_data:
+                        player.update(player_data)
+
+                    other_players_data = packet['data'].get('players', False)
+                    if other_players_data:
+                        for uid, player_data in other_players_data.items():
+                            other_player = other_players.get(uid, False)
+                            if not other_player:
+                                other_players[uid] = Player()
+                            other_players[uid].update(player_data)
+
+                elif packet['type'] == 'remove_player':
+                    uids = packet['data']
+                    for uid in uids:
+                        logger.info('player %s left' % uid)
+                        del other_players[uid]
                 else:
-                    logger.info('got message of type %s' % msg.type)
+                    logger.debug("Got undefined message %s" % msg.data)
 
-                actions = await send_queue.get_all_actions()
-                if actions:
-                    logger.info('sending actions: %s' % actions)
-                    await ws.send_str(json.dumps({'type': 'actions', 'data': actions}))
-                logger.info('ticking...')
+                # await ws.send_str("Pressed key code: {}".format(msg.data))
+            else:
+                logger.info('got message of type %s' % msg.type)
+
 
 
 class ScreenManager:
@@ -200,9 +218,10 @@ class ScreenManager:
                             draw_colour = self.screen.COLOUR_MAGENTA
                         self.screen_print_with_player_offset(tile_char, x_coord, y_coord, colour=draw_colour)
 
-                self.screen_print_with_player_offset(player.char, player.x, player.y)
+                self.screen_print_with_player_offset(player.char, player.x, player.y, colour=player.color)
                 for uid, other_player in other_players.items():
-                    self.screen_print_with_player_offset(other_player.char, other_player.x, other_player.y)
+                    self.screen_print_with_player_offset(other_player.char, other_player.x, other_player.y, colour=other_player.color)
+
                 self.handle_input()
                 '''
                 for creature in self.player.room.creatures:
@@ -234,8 +253,9 @@ def connect(url):
 
     loop = asyncio.get_event_loop()
 
-    loop.create_task(c.run(url))
+    loop.create_task(c.init(url))
     loop.create_task(screen_manager.run())
+
     loop.run_forever()
 
 

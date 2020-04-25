@@ -8,7 +8,7 @@ def init_logging(loglevel='info'):
         'disable_existing_loggers': False,
         'formatters': {
             'default': {
-                'format': '%(name)s [%(levelname)s]: %(message)s'
+                'format': '%(name)s [%(filename)s][%(levelname)s][%(lineno)d] : %(message)s'
             },
         },
         'handlers': {

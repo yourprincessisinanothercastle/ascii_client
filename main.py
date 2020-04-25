@@ -171,8 +171,8 @@ class ScreenManager:
         self.screen = None
 
     def screen_print_with_player_offset(self, s, x, y, colour=7, attr=0, bg=0):
-        centre_x = (self.screen.width // 2) - player.x * 3
-        centre_y = (self.screen.height // 2) - player.y * 3
+        centre_x = (self.screen.width // 2) - player.x
+        centre_y = (self.screen.height // 2) - player.y
         self.screen.print_at(s, centre_x + x, centre_y + y, colour=colour, attr=attr, bg=bg)
 
     def draw_tile(self, name, x, y, color):
@@ -180,14 +180,14 @@ class ScreenManager:
         if sprite:
             for row_idx, row in enumerate(sprite):
                 for col_idx, char in enumerate(row):
-                    self.screen_print_with_player_offset(char, x * 3 + col_idx, y * 3 + row_idx, colour=color)
+                    self.screen_print_with_player_offset(char, x, y, colour=color)
 
     def draw_player(self, player: Player):
         sprite = player.sprite.get_cells()
         for row_idx, row in enumerate(sprite):
             for col_idx, char in enumerate(row):
                 if char:
-                    self.screen_print_with_player_offset(char, player.x * 3 + col_idx, player.y * 3 + row_idx, colour=player.color)
+                    self.screen_print_with_player_offset(char, player.x + col_idx, player.y + row_idx, colour=player.color)
 
         pass
 
@@ -219,12 +219,11 @@ class ScreenManager:
             self.screen = screen
             while True:
                 _continue = True
-                
+
                 self.handle_input()
-                
+
                 self.tick(FPS)
-                
-                
+
                 # clear screen
                 self.screen.clear_buffer(self.screen.COLOUR_WHITE, self.screen.A_NORMAL, self.screen.COLOUR_BLACK)
                 self.screen.print_at('%s whoo!!' % time.time(), 0, 0)
@@ -246,7 +245,6 @@ class ScreenManager:
                 for uid, other_player in other_players.items():
                     self.draw_player(other_player)
 
-                
                 '''
                 for creature in self.player.room.creatures:
                     if creature.current_tile.is_visible:

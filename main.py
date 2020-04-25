@@ -8,6 +8,7 @@ from time import sleep
 import aiohttp
 import click
 
+from lib.creatures.player import Player
 from lib.init_logging import init_logging
 from asciimatics.event import KeyboardEvent
 from asciimatics.screen import ManagedScreen
@@ -31,29 +32,24 @@ KEY_ACTIONS = {
 }
 
 
-class Player:
-    def __init__(self):
-        self.char = '@'
-        self.x = 0
-        self.y = 0
-        self.color = 0
-
-    def update(self, update_data):
-        logger.info(update_data)
-        self.x, self.y = update_data['coords']
-        self.color = update_data['color']
-
-
 class Tile:
-    def __init__(self, char, seen, is_visible):
-        self.char = char
+    def __init__(self, name, seen, is_visible):
+        self.name = name
         self.seen = seen
         self.is_visible = is_visible
 
 
-TILE_CHARS = {
-    'wall': '#',
-    'floor': '.'
+TILE_LAYOUT = {
+    'wall': [
+        ['#', '#', '#'],
+        ['#', ' ', '#'],
+        ['#', '#', '#']
+    ],
+    'floor': [
+        ['.', '.', '.'],
+        ['.', '.', '.'],
+        ['.', '.', '.'],
+    ]
 }
 
 
@@ -65,8 +61,7 @@ class Room:
         if not self.tiles.get(y, False):
             self.tiles[y] = {}
 
-        char = TILE_CHARS.get(name, 'X')
-        self.tiles[y][x] = Tile(char, seen, is_visible)
+        self.tiles[y][x] = Tile(name, seen, is_visible)
 
     def update_room(self, update_data):
         for tile in update_data:
@@ -94,6 +89,7 @@ current_room = Room()
 player = Player()
 other_players = {}
 
+
 class Client:
     def __init__(self):
         self.session = aiohttp.ClientSession()
@@ -112,7 +108,7 @@ class Client:
                 logger.info(actions)
                 logger.info('sending actions: %s' % actions)
                 await self.ws.send_str(json.dumps({'type': 'actions', 'data': actions}))
-            await asyncio.sleep(1/20)
+            await asyncio.sleep(1 / 20)
 
     async def receive_loop(self):
         async for msg in self.ws:
@@ -123,7 +119,7 @@ class Client:
                 pass
 
             elif msg.type == aiohttp.WSMsgType.text:
-                #logger.debug('got msg: %s' % msg.data)
+                # logger.debug('got msg: %s' % msg.data)
                 packet = json.loads(msg.data)
                 if packet['type'] == 'init':
                     logger.debug("Got init package")
@@ -169,16 +165,31 @@ class Client:
                 logger.info('got message of type %s' % msg.type)
 
 
-
 class ScreenManager:
     def __init__(self):
         self.send_queue = SendQueue()
         self.screen = None
 
     def screen_print_with_player_offset(self, s, x, y, colour=7, attr=0, bg=0):
-        centre_x = (self.screen.width // 2) - player.x
-        centre_y = (self.screen.height // 2) - player.y
+        centre_x = (self.screen.width // 2) - player.x * 3
+        centre_y = (self.screen.height // 2) - player.y * 3
         self.screen.print_at(s, centre_x + x, centre_y + y, colour=colour, attr=attr, bg=bg)
+
+    def draw_tile(self, name, x, y, color):
+        sprite = TILE_LAYOUT.get(name, False)
+        if sprite:
+            for row_idx, row in enumerate(sprite):
+                for col_idx, char in enumerate(row):
+                    self.screen_print_with_player_offset(char, x * 3 + col_idx, y * 3 + row_idx, colour=color)
+
+    def draw_player(self, player: Player):
+        sprite = player.sprite.get_cells()
+        for row_idx, row in enumerate(sprite):
+            for col_idx, char in enumerate(row):
+                if char:
+                    self.screen_print_with_player_offset(char, player.x * 3 + col_idx, player.y * 3 + row_idx, colour=player.color)
+
+        pass
 
     def handle_input(self):
         event = self.screen.get_event()
@@ -191,38 +202,51 @@ class ScreenManager:
                 send_queue.add_action(action)
         return True
 
-    def tick(self):
-        pass
+    def tick(self, dt):
+        """
+        update sprites
+
+        :param dt: 
+        :return: 
+        """
+        player.tick_sprite_state(dt)
+        for uid, other_player in other_players.items():
+            other_player.tick_sprite_state(dt)
 
     async def run(self):
-        FPS = 1/20
+        FPS = 1 / 20
         with ManagedScreen() as screen:
             self.screen = screen
             while True:
                 _continue = True
+                
+                self.handle_input()
+                
+                self.tick(FPS)
+                
+                
                 # clear screen
-
                 self.screen.clear_buffer(self.screen.COLOUR_WHITE, self.screen.A_NORMAL, self.screen.COLOUR_BLACK)
                 self.screen.print_at('%s whoo!!' % time.time(), 0, 0)
 
                 # render map, player is center
                 for y_coord, row in current_room.tiles.items():
                     for x_coord, tile in row.items():
-                        tile_char = ' '
+                        name = ' '
                         draw_colour = self.screen.COLOUR_WHITE
                         if tile.is_visible:
-                            tile_char = tile.char
+                            name = tile.name
                             draw_colour = self.screen.COLOUR_WHITE
                         elif tile.seen:
-                            tile_char = tile.char
+                            name = tile.name
                             draw_colour = self.screen.COLOUR_MAGENTA
-                        self.screen_print_with_player_offset(tile_char, x_coord, y_coord, colour=draw_colour)
+                        self.draw_tile(name, x_coord, y_coord, draw_colour)
 
-                self.screen_print_with_player_offset(player.char, player.x, player.y, colour=player.color)
+                self.draw_player(player)
                 for uid, other_player in other_players.items():
-                    self.screen_print_with_player_offset(other_player.char, other_player.x, other_player.y, colour=other_player.color)
+                    self.draw_player(other_player)
 
-                self.handle_input()
+                
                 '''
                 for creature in self.player.room.creatures:
                     if creature.current_tile.is_visible:
@@ -230,7 +254,6 @@ class ScreenManager:
 
                 # draw the screen!
                 self.screen.refresh()
-
                 await asyncio.sleep(FPS)
 
 

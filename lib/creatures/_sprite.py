@@ -65,7 +65,6 @@ class Sprite:
         # set next frame, if timer over ms for this frame
         if self.current_frame.timer > (self.current_frame.ms / 1000):
             next_frame_idx = (self.current_frame.idx + 1) % len(self.current_state_frames)
-            logger.info('new current frame, idx %s!' % next_frame_idx)
             frame: Frame = self.current_state_frames[next_frame_idx]
             self.current_frame = frame.make_current_frame()
 

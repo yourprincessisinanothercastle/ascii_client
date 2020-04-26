@@ -243,7 +243,6 @@ class ScreenManager:
         for uid, other_player in other_players.items():
             other_player.tick_sprite_state(dt)
         for uid, creature in creatures.items():
-
             creature.tick_sprite_state(dt)
 
     async def run(self):
@@ -314,6 +313,14 @@ def connect(url):
     loop.create_task(screen_manager.run())
 
     loop.run_forever()
+
+
+@cli.command()
+@click.argument('path')
+def sprite(path):
+    from sprite_edit import SpriteEdit
+    sprite_edit = SpriteEdit(path)
+    sprite_edit.run()
 
 
 cli()

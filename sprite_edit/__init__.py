@@ -114,6 +114,8 @@ class SpriteEdit(SpriteObserver):
 
     def draw_directions(self):
         offset = (0, 20)
+        if not self.sprite.states.get(self.active_state, False):
+            self.iter_sprite_state()
         self.screen.print_at('directions:  ([wasd] to change)', offset[0], offset[1])
         directions = self.sprite.states[self.active_state].keys()
         for idx, direction in enumerate(directions):

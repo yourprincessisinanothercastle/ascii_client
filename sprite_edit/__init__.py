@@ -125,7 +125,6 @@ class SpriteEdit(SpriteObserver):
                 attr = 0
             self.screen.print_at('%s' % (direction), 1 + offset[0], 1 + idx + offset[1], attr=attr)
 
-
     def run_animation(self):
         FPS = 1 / 20
         with ManagedScreen() as screen:

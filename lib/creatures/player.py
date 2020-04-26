@@ -12,6 +12,8 @@ class Player:
         self.x = 0
         self.y = 0
         self.color = 0
+        
+        self.hit_points = 0
 
         self.direction = 'right'
         self.state = 'idle'
@@ -38,5 +40,8 @@ class Player:
         """
         self.x, self.y = update_data['coords']
         self.color = update_data['color']
+        if update_data['hit_points'] < self.hit_points:
+            self.sprite.add_current_effect(ms=100, color=196)
+        self.hit_points = update_data['hit_points']
 
         # todo: direction, state

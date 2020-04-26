@@ -208,18 +208,23 @@ class ScreenManager:
     def draw_player(self, player: Player):
         self.draw_creature(player)
 
-        pass
+    def draw_hit_points(self):
+        offset = (2, 2)
+        self.screen.print_at('%s / %s' % (player.hit_points, 100), offset[0], offset[1])
 
     def draw_creature(self, creature: Creature):
         sprite = creature.sprite.get_cells()
-        color = creature.color
+        color, attr, bg = creature.sprite.get_effects()
+
+        if not color:
+            color = creature.color
         if not creature.is_visible:
             color = 10
         for row_idx, row in enumerate(sprite):
             for col_idx, char in enumerate(row):
                 if char:
                     self.screen_print_with_player_offset(char, creature.x + col_idx, creature.y + row_idx,
-                                                         colour=color)
+                                                         colour=color, attr=attr, bg=bg)
 
     def handle_input(self):
         event = self.screen.get_event()
@@ -258,7 +263,7 @@ class ScreenManager:
 
                 # clear screen
                 self.screen.clear_buffer(self.screen.COLOUR_WHITE, self.screen.A_NORMAL, self.screen.COLOUR_BLACK)
-                self.screen.print_at('%s whoo!!' % time.time(), 0, 0)
+                self.draw_hit_points()
 
                 # render map, player is center
                 for y_coord, row in current_room.tiles.items():
@@ -295,12 +300,6 @@ def cli():
     pass
 
 
-async def wait():
-    while True:
-        await asyncio.sleep(1)
-        print('waiting!!')
-
-
 @cli.command()
 @click.argument('url')
 def connect(url):
@@ -321,6 +320,25 @@ def sprite(path):
     from sprite_edit import SpriteEdit
     sprite_edit = SpriteEdit(path)
     sprite_edit.run()
+
+
+@cli.command()
+def print_colors():
+    print('...')
+    with ManagedScreen() as screen:
+        screen.clear_buffer(screen.COLOUR_WHITE, screen.A_NORMAL, screen.COLOUR_BLACK)
+        col = 0
+        for color in range(254):
+            if color >= screen.height * col:
+                col += 1
+            screen.print_at("## %s" % color, col * 10, color % screen.height, colour=color)
+
+        screen.refresh()
+        while True:
+            event = screen.get_event()
+            if event:
+                exit(0)
+            sleep(.5)
 
 
 cli()

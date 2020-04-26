@@ -4,7 +4,6 @@ import random
 from lib.init_logging import init_logging
 from ruamel.yaml import YAML
 
-
 init_logging('debug')
 logger = logging.getLogger(__name__)
 
@@ -34,6 +33,15 @@ class CurrentFrame:
         self.timer = timer
 
 
+class CurrentEffect:
+    def __init__(self, ms, color=None, attr=0, bg=0):
+        self.ms = ms
+        self.timer = 0
+        self.color = color
+        self.attr = attr
+        self.bg = bg
+
+
 class Sprite:
     def __init__(self, path):
         self.states = {}
@@ -43,6 +51,8 @@ class Sprite:
         self.current_direction = 'right'
 
         self.current_frame = self.current_state_frames[0].make_current_frame()
+
+        self.current_effect: CurrentEffect = None
 
     @property
     def current_state_frames(self):
@@ -60,7 +70,7 @@ class Sprite:
 
         # the actual tick
         self.current_frame.timer += dt
-        #logger.debug('timer %s / %s' % (self.current_frame.timer, self.current_frame.ms / 1000))
+        # logger.debug('timer %s / %s' % (self.current_frame.timer, self.current_frame.ms / 1000))
 
         # set next frame, if timer over ms for this frame
         if self.current_frame.timer > (self.current_frame.ms / 1000):
@@ -68,8 +78,22 @@ class Sprite:
             frame: Frame = self.current_state_frames[next_frame_idx]
             self.current_frame = frame.make_current_frame()
 
+        # process current effect
+        if self.current_effect:
+            self.current_effect.timer += dt
+            if self.current_effect.timer > (self.current_effect.ms / 1000):
+                self.current_effect = None
+
+    def add_current_effect(self, ms, color=None, attr=0, bg=0):
+        self.current_effect = CurrentEffect(ms, color, attr, bg)
+
     def get_cells(self):
         return self.current_frame.cells
+
+    def get_effects(self):
+        if self.current_effect:
+            return self.current_effect.color, self.current_effect.attr, self.current_effect.bg
+        return None, 0, 0
 
     def load(self, path):
         with open(path, 'r') as f:

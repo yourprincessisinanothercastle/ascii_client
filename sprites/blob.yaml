@@ -1,4 +1,4 @@
-idle:
+idle: &idle
   right:
     - ms: [500, 1000]
       random: true
@@ -25,33 +25,7 @@ idle:
       [~, "-", ~],
       ["(", "_", ")"]
       ]
-walking:
-  right:
-    - ms: [100, 500]
-      random: true
-      cells: [
-      [ ~ , "_", " ",  ~ ],
-      ["(", "_", "_", ")"]
-      ]
-    - ms: [200, 500]
-      random: true
-      cells: [
-      [~, "-", ~],
-      ["(", "_", ")"]
-      ]
-  left:
-    - ms: [200, 500]
-      random: true
-      cells: [
-      [ ~ , " ", "_",  ~ ],
-      ["(", "_", "_", ")"]
-      ]
-    - ms: [200, 500]
-      random: true
-      cells: [
-      [~, "-", ~],
-      ["(", "_", ")"]
-      ]
+move: *idle
 attack:
   right:
     - ms: 30

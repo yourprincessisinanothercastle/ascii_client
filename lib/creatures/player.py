@@ -12,12 +12,12 @@ class Player:
         self.x = 0
         self.y = 0
         self.color = 0
-        
+
         self.hit_points = 0
 
         self.direction = 'right'
-        self.state = 'idle'
-        
+        self.sprite_state = 'idle'
+
         self.is_visible = True
 
         self.sprite = Sprite('sprites/player.yaml')
@@ -29,7 +29,7 @@ class Player:
         :param dt: 
         :return: 
         """
-        self.sprite.tick(dt, self.state, self.direction)
+        self.sprite.tick(dt, self.sprite_state, self.direction)
 
     def update(self, update_data):
         """
@@ -43,5 +43,4 @@ class Player:
         if update_data['hit_points'] < self.hit_points:
             self.sprite.add_current_effect(ms=100, color=196)
         self.hit_points = update_data['hit_points']
-
-        # todo: direction, state
+        self.sprite_state = update_data['sprite_state']

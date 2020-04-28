@@ -18,10 +18,12 @@ init_logging('debug')
 logger = logging.getLogger(__name__)
 
 # keys needed for local stuff
-KEYS = dict(
-    # action: key code
-    quit=ord('q')
-)
+KEYS_ACTION = {
+    'w': 'up',
+    'a': 'left',
+    's': 'down',
+    'd': 'right'
+}
 
 # actions sent to server
 KEY_ACTIONS = {
@@ -66,7 +68,6 @@ class Room:
 
     def update_room(self, update_data):
         for tile in update_data:
-            logger.info(tile)
             (x, y), name, (seen, is_visible) = tile
             self._set_tile(x, y, name, seen, is_visible)
 
@@ -111,7 +112,7 @@ class Client:
                 logger.info(actions)
                 logger.info('sending actions: %s' % actions)
                 await self.ws.send_str(json.dumps({'type': 'actions', 'data': actions}))
-            await asyncio.sleep(1 / 20)
+            await asyncio.sleep(1 / 10)
 
     async def receive_loop(self):
         async for msg in self.ws:
@@ -192,6 +193,27 @@ class ScreenManager:
     def __init__(self):
         self.send_queue = SendQueue()
         self.screen = None
+        self.setup_keys()
+        
+        self.pressed_keys = set()
+    '''
+    def on_key_press(self, event: keyboard.KeyboardEvent):
+        key = event.name
+        self._add_to_send_queue(key, 'press')
+
+    def on_key_release(self, event: keyboard.KeyboardEvent):
+        key = event.name
+        self._add_to_send_queue(key, 'release')'''
+
+    def _add_to_send_queue(self, key, state):
+        action = KEY_ACTIONS.get(key, False)
+        if action:
+            send_queue.add_action((action, state))
+
+    def setup_keys(self):
+        for key in KEY_ACTIONS.keys():
+            keyboard.on_press_key(key, self.on_key_press, suppress=False)
+            keyboard.on_release_key(key, self.on_key_press, suppress=False)
 
     def screen_print_with_player_offset(self, s, x, y, colour=7, attr=0, bg=0):
         centre_x = (self.screen.width // 2) - player.x
@@ -229,9 +251,9 @@ class ScreenManager:
     def handle_input(self):
         event = self.screen.get_event()
         if event and type(event) == KeyboardEvent:
-            if event.key_code == KEYS['quit']:
-                return False
             action = KEY_ACTIONS.get(event.key_code, False)
+
+
             logger.info(action)
             if action:
                 send_queue.add_action(action)
@@ -341,4 +363,39 @@ def print_colors():
             sleep(.5)
 
 
+
+@cli.command()
+def test_getevent():
+    with ManagedScreen() as screen:
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
+                    if event.mod == pygame.KMOD_NONE:
+                        print('No modifier keys were in a pressed state when this '
+                              'event occurred.')
+                    else:
+                        if event.mod & pygame.KMOD_LSHIFT:
+                            print('Left shift was in a pressed state when this event '
+                                  'occurred.')
+                        if event.mod & pygame.KMOD_RSHIFT:
+                            print('Right shift was in a pressed state when this event '
+                                  'occurred.')
+                        if event.mod & pygame.KMOD_SHIFT:
+                            print('Left shift or right shift or both were in a '
+                                  'pressed state when this event occurred.')
+
+            keys_pressed = set()
+            e = True
+            while e:
+                e = screen.get_event()
+                if e:
+                    keys_pressed.add(e.key_code)
+                
+            logger.info(keys_pressed)
+            print('sleep')
+            sleep(.1)
+
 cli()
+
+
+    

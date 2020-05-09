@@ -7,7 +7,8 @@ init_logging('debug')
 logger = logging.getLogger(__name__)
 
 CREATURE_SPRITES = {
-    'blob': 'sprites/blob.yaml'
+    'blob': 'sprites/blob.yaml',
+    'skeleton': 'sprites/skeleton.yaml'
 }
 
 

@@ -8,7 +8,8 @@ logger = logging.getLogger(__name__)
 
 CREATURE_SPRITES = {
     'blob': 'sprites/blob.yaml',
-    'skeleton': 'sprites/skeleton.yaml'
+    'skeleton': 'sprites/skeleton.yaml',
+    'level_exit': 'sprites/level_exit.yaml'  # TODO not a creature, but just throwing it in here for now
 }
 
 

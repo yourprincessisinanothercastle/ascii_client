@@ -29,6 +29,7 @@ KEY_ACTIONS = {
     ord('s'): 'down',
     ord('a'): 'left',
     ord('d'): 'right',
+    ord('e'): 'interact',
     0xa: 'fire',  # return
 }
 
